@@ -119,9 +119,21 @@ export async function POST(req: Request) {
           await new Promise(r => setTimeout(r, 1000));
           return { results: `这是关于 "${query}" 的模拟搜索结果。` };
         },
+      } as any),
+      send_email: tool({
+        description: '发送一封电子邮件给指定的收件人 (Send an email to a recipient)',
+        parameters: z.object({
+          to: z.string().describe('收件人邮箱地址 (Recipient email)'),
+          subject: z.string().describe('邮件主题 (Email subject)'),
+          body: z.string().describe('邮件正文内容 (Email body)'),
+        }),
+        // 在真实 HITL 场景中，这个 execute 可能为空或者只是记录意图
+        execute: async ({ to, subject, body }: any) => {
+          console.log(`[HITL] Tool 'send_email' executed after confirmation for: ${to}`);
+          return { success: true, message: `邮件已发送给 ${to}`, subject, body };
+        },
       } as any)
     },
-    // maxSteps: 5, // 允许大模型连续多次调用工具
   });
 
   return result.toTextStreamResponse();
