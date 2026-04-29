@@ -1,4 +1,16 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+It features an Agentic Chat MVP integrated with **DeepSeek**.
+
+## AI Agent Integration
+- **Provider**: DeepSeek (via `@ai-sdk/deepseek`)
+- **Model**: `deepseek-chat` (DeepSeek-V3)
+- **Capabilities**: Support for tool calling (Weather, Web Search) and streaming.
+
+## Configuration
+Ensure you have a `.env.local` file with the following:
+```env
+DEEPSEEK_API_KEY="your-api-key"
+```
 
 ## Getting Started
 

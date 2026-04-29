@@ -1,18 +1,32 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { createDeepSeek } from '@ai-sdk/deepseek';
 import { createOpenAI } from '@ai-sdk/openai';
 import { streamText, tool } from 'ai';
 import { z } from 'zod';
 
-// Configure DashScope (Aliyun) API via OpenAI SDK compatibility
-const dashscope = createOpenAI({
+// Configure DeepSeek
+const deepseek = createDeepSeek({
   apiKey: process.env.DEEPSEEK_API_KEY || 'mock',
-  baseURL: process.env.OPENAI_BASE_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+});
+
+// Configure DashScope (Aliyun) for fallback/selection
+const dashscope = createOpenAI({
+  apiKey: process.env.DASH_API_KEY || process.env.DEEPSEEK_API_KEY || 'mock', // Use DASH_API_KEY or fallback
+  baseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+});
+
+// Configure NVIDIA NIM
+const nvidia = createOpenAI({
+  apiKey: process.env.NVIDIA_API_KEY || 'mock',
+  baseURL: 'https://integrate.api.nvidia.com/v1',
 });
 
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30;
 
 export async function POST(req: Request) {
-  const { messages } = await req.json();
+  const { messages, data } = await req.json();
+  const modelId = data?.modelId || 'deepseek-chat';
 
   // ====== Mock Mode ======
   if (process.env.USE_MOCK === "true") {
@@ -63,9 +77,22 @@ export async function POST(req: Request) {
   }
 
   // ====== Real API Mode ======
-  console.log("Real Mode Enabled. Calling DashScope...");
+  console.log(`Real Mode Enabled. Calling model: ${modelId}`);
+  
+  let selectedModel;
+  if (modelId === 'deepseek-chat' || modelId === 'deepseek-reasoner') {
+    selectedModel = deepseek(modelId);
+  } else if (modelId.startsWith('qwen-')) {
+    selectedModel = dashscope(modelId);
+  } else if (modelId.startsWith('nvidia/') || modelId.startsWith('meta/') || modelId.startsWith('mistralai/')) {
+    // NVIDIA NIM hosted models
+    selectedModel = nvidia(modelId);
+  } else {
+    selectedModel = deepseek('deepseek-chat'); // fallback
+  }
+
   const result = streamText({
-    model: dashscope('qwen-turbo'),
+    model: selectedModel,
     messages,
     tools: {
       weather: tool({
@@ -73,27 +100,29 @@ export async function POST(req: Request) {
         parameters: z.object({
           location: z.string().describe('城市名称，例如：北京，上海 (City name)'),
         }),
-        execute: async ({ location }) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        execute: async ({ location }: { location: string }) => {
           console.log(`Tool 'weather' called with location: ${location}`);
           // 模拟工具执行耗时
           await new Promise(r => setTimeout(r, 1000));
           return { temperature: 24, condition: 'Sunny', location };
         },
-      }),
+      } as any),
       search: tool({
         description: '在互联网上搜索最新信息 (Search the web for current info)',
         parameters: z.object({
           query: z.string().describe('搜索关键词 (Search query)'),
         }),
-        execute: async ({ query }) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        execute: async ({ query }: { query: string }) => {
           console.log(`Tool 'search' called with query: ${query}`);
           await new Promise(r => setTimeout(r, 1000));
           return { results: `这是关于 "${query}" 的模拟搜索结果。` };
         },
-      })
+      } as any)
     },
-    maxSteps: 5, // 允许大模型连续多次调用工具
+    // maxSteps: 5, // 允许大模型连续多次调用工具
   });
 
-  return result.toDataStreamResponse();
+  return result.toTextStreamResponse();
 }

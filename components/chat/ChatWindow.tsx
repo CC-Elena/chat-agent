@@ -1,17 +1,22 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useChat } from "@ai-sdk/react";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card } from "@/components/ui/card";
 import { Send, Bot, User, Wrench } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 
 export function ChatWindow() {
+  const [modelId, setModelId] = useState("deepseek-chat");
+
   // @ai-sdk/react v3+ useChat
-  const { messages, sendMessage, status, error } = useChat({
+  const { messages, sendMessage, status } = useChat({
     api: "/api/chat",
-  });
+    body: {
+      data: { modelId }
+    }
+  } as any);
 
   const [inputValue, setInputValue] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -37,12 +42,38 @@ export function ChatWindow() {
   return (
     <Card className="flex flex-col h-[85vh] w-full max-w-4xl mx-auto shadow-xl bg-white border-0">
       {/* Header */}
-      <div className="border-b p-4 bg-slate-50/50 rounded-t-xl flex flex-col gap-1">
-        <h2 className="text-xl font-bold flex items-center gap-2 text-slate-800">
-          <Bot className="w-6 h-6 text-indigo-500" />
-          Agentic Chat MVP
-        </h2>
-        <p className="text-sm text-slate-500">Powered by Aliyun DashScope (Qwen-max). Capable of invoking weather and search tools.</p>
+      <div className="border-b p-4 bg-slate-50/50 rounded-t-xl flex items-center justify-between">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-xl font-bold flex items-center gap-2 text-slate-800">
+            <Bot className="w-6 h-6 text-indigo-500" />
+            Agentic Chat MVP
+          </h2>
+          <p className="text-sm text-slate-500">Capable of invoking weather and search tools.</p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Model:</span>
+          <select 
+            value={modelId}
+            onChange={(e) => setModelId(e.target.value)}
+            className="text-sm bg-white border border-slate-200 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-700 shadow-sm"
+            disabled={isLoading}
+          >
+            <optgroup label="DeepSeek">
+              <option value="deepseek-chat">DeepSeek V3 (Chat)</option>
+              <option value="deepseek-reasoner">DeepSeek R1 (Reasoner)</option>
+            </optgroup>
+            <optgroup label="Aliyun DashScope">
+              <option value="qwen-turbo">Qwen Turbo</option>
+              <option value="qwen-max">Qwen Max</option>
+            </optgroup>
+            <optgroup label="NVIDIA NIM">
+              <option value="meta/llama-3.1-405b-instruct">Llama 3.1 405B</option>
+              <option value="nvidia/llama-3.1-nemotron-70b-instruct">Llama 3.1 Nemotron 70B</option>
+              <option value="meta/llama-3.1-8b-instruct">Llama 3.1 8B</option>
+            </optgroup>
+          </select>
+        </div>
       </div>
 
       {/* Message Area */}
@@ -55,7 +86,7 @@ export function ChatWindow() {
             </div>
           )}
 
-          {messages.map((m) => (
+          {messages.map((m: any) => (
             <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
               <div className={`flex gap-3 max-w-[85%] ${m.role === "user" ? "flex-row-reverse" : "flex-row"}`}>
                 
